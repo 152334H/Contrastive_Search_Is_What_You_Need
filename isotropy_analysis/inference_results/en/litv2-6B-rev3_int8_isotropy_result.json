@@ -1,0 +1,8 @@
+[
+    {
+        "language_code": "en",
+        "model_name": "hakurei/litv2-6B-rev3",
+        "use_8bit": true,
+        "isotropy": 0.7402509382939957
+    }
+]

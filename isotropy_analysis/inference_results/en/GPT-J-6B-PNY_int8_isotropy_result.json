@@ -1,0 +1,8 @@
+[
+    {
+        "language_code": "en",
+        "model_name": "Amo/GPT-J-6B-PNY",
+        "use_8bit": true,
+        "isotropy": 0.6706024349766115
+    }
+]

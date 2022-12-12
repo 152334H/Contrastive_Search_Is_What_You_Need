@@ -1,0 +1,8 @@
+[
+    {
+        "language_code": "en",
+        "model_name": "EleutherAI/gpt-j-6B",
+        "use_8bit": true,
+        "isotropy": 0.6921982215472025
+    }
+]
