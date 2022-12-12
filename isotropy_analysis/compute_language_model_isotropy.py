@@ -25,7 +25,7 @@ def parse_text(text, tokenizer, max_len, bos_token_id=None):
 
 def compute_one_instance_result(model, input_ids, model_name):
     # input_ids : 1 x seqlen
-    if 'gpt-neo' in model_name:
+    if 'gpt-neo' in model_name or 'gpt-j' in model_name:
         outputs = model(input_ids=input_ids, output_hidden_states=True)
     else:
         outputs = model.model(input_ids=input_ids, output_hidden_states=True)
@@ -63,11 +63,23 @@ if __name__ == '__main__':
         model = SimCTGOPT(model_name)
         tokenizer = model.tokenizer
         bos_token_id = tokenizer.bos_token_id
+    elif 'gpt-neox' in model_name:
+        print ('Evaluating GPT-NeoX model.')
+        from transformers import GPTNeoXForCausalLM, GPTNeoXTokenizerFast
+        model = GPTNeoXForCausalLM.from_pretrained(model_name, device_map='auto', load_in_8bit=True)
+        tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
+        bos_token_id = None
     elif 'gpt-neo' in model_name:
         print ('Evaluating GPT-Neo model.')
         from transformers import GPTNeoForCausalLM, GPT2Tokenizer
         model = GPTNeoForCausalLM.from_pretrained(model_name)
         tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+        bos_token_id = None
+    elif 'gpt-j' in model_name:
+        print('Evaluating GPT-J model')
+        from transformers import GPTJForCausalLM, AutoTokenizer
+        model = GPTJForCausalLM.from_pretrained(model_name, revision="float16", torch_dtype=torch.float16, low_cpu_mem_usage=True)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
         bos_token_id = None
     else: # GPT model
         print ('Evaluating GPT model.')
