@@ -10,6 +10,7 @@ def parse_config():
     parser.add_argument("--language_code", type=str)
     parser.add_argument("--model_name", type=str)
     parser.add_argument("--save_path_prefix", type=str)
+    parser.add_argument("--use_8bit", action='store_true')
     return parser.parse_args()
 
 def parse_text(text, tokenizer, max_len, bos_token_id=None):
@@ -23,9 +24,16 @@ def parse_text(text, tokenizer, max_len, bos_token_id=None):
     input_ids = torch.LongTensor(token_ids).view(1,-1)
     return input_ids
 
+def is_hf_model(model_name):
+    STUBS = ['gpt-neox', 'gpt-neo', 'gpt-j']
+    for s in STUBS:
+        if s in model_name.lower(): return s
+    if 'litv2' in model_name: return 'gpt-j'
+    return None
+
 def compute_one_instance_result(model, input_ids, model_name):
     # input_ids : 1 x seqlen
-    if 'gpt-neo' in model_name or 'gpt-j' in model_name:
+    if is_hf_model(model_name):
         outputs = model(input_ids=input_ids, output_hidden_states=True)
     else:
         outputs = model.model(input_ids=input_ids, output_hidden_states=True)
@@ -51,10 +59,30 @@ if __name__ == '__main__':
         pass
     else: # recursively construct directory
         os.makedirs(save_path_prefix, exist_ok=True)
-    save_name = r'{}_isotropy_result.json'.format(args.model_name.split('/')[-1])
+    save_name = r'{}{}_isotropy_result.json'.format(args.model_name.split('/')[-1], "_int8" if args.use_8bit else "")
     save_path = save_path_prefix + save_name
     print ('Save path is {}'.format(save_path))
 
+    def load_hf(model_name, model_type, use_8bit=False):
+        from transformers import GPT2Tokenizer, GPTNeoXTokenizerFast, AutoTokenizer, GPTJForCausalLM, GPTNeoForCausalLM, GPTNeoXForCausalLM
+        print(f'Evaluating {model_name}')
+        modeler = {
+            'gpt-neo': GPTNeoForCausalLM,
+            'gpt-neox': GPTNeoXForCausalLM,
+            'gpt-j': GPTJForCausalLM
+        }[model_type]
+        tokenizerer = {
+            'gpt-neo': GPT2Tokenizer,
+            'gpt-neox': GPTNeoXTokenizerFast,
+            'gpt-j': AutoTokenizer
+        }[model_type]
+        kwargs = {
+            "EleutherAI/gpt-j-6B": {"revision": "float16"}
+        }.get(model_name, {})
+        model = modeler.from_pretrained(model_name, device_map='auto', load_in_8bit=use_8bit, **kwargs)
+        tokenizer = tokenizerer.from_pretrained(model_name)
+
+        return model, tokenizer, None
     print ('Loading model...')
     model_name = args.model_name
     if 'opt' in model_name: # OPT model
@@ -63,24 +91,8 @@ if __name__ == '__main__':
         model = SimCTGOPT(model_name)
         tokenizer = model.tokenizer
         bos_token_id = tokenizer.bos_token_id
-    elif 'gpt-neox' in model_name:
-        print ('Evaluating GPT-NeoX model.')
-        from transformers import GPTNeoXForCausalLM, GPTNeoXTokenizerFast
-        model = GPTNeoXForCausalLM.from_pretrained(model_name, device_map='auto', load_in_8bit=True)
-        tokenizer = GPTNeoXTokenizerFast.from_pretrained(model_name)
-        bos_token_id = None
-    elif 'gpt-neo' in model_name:
-        print ('Evaluating GPT-Neo model.')
-        from transformers import GPTNeoForCausalLM, GPT2Tokenizer
-        model = GPTNeoForCausalLM.from_pretrained(model_name)
-        tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-        bos_token_id = None
-    elif 'gpt-j' in model_name:
-        print('Evaluating GPT-J model')
-        from transformers import GPTJForCausalLM, AutoTokenizer
-        model = GPTJForCausalLM.from_pretrained(model_name, revision="float16", torch_dtype=torch.float16, low_cpu_mem_usage=True)
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        bos_token_id = None
+    elif model_type := is_hf_model(model_name):
+        model, tokenizer, bos_token_id = load_hf(model_name, model_type, args.use_8bit)
     else: # GPT model
         print ('Evaluating GPT model.')
         from simctg.simctggpt import SimCTGGPT
@@ -88,7 +100,7 @@ if __name__ == '__main__':
         tokenizer = model.tokenizer
         bos_token_id = None
     model.eval()
-    if cuda_available:
+    if cuda_available and "cuda" not in str(next(model.parameters()).device):
         model = model.cuda(device)
     print ('Model loaded!')
 
@@ -128,11 +140,12 @@ if __name__ == '__main__':
 
     averaged_self_similarity = cosine_score_sum / token_sum
     model_isotropy = 1.0 - averaged_self_similarity
-    model_isotropy = round(model_isotropy, 2)
+    #model_isotropy = round(model_isotropy, 2)
 
     result_dict = {
         'language_code': args.language_code,
         'model_name': args.model_name,
+        'use_8bit': args.use_8bit,
         'isotropy': model_isotropy
     }
     print (r"Language Code:{}, Model:{}, Isotropy:{}".format(args.language_code,
