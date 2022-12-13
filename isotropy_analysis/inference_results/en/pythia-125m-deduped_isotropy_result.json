@@ -1,0 +1,8 @@
+[
+    {
+        "language_code": "en",
+        "model_name": "EleutherAI/pythia-125m-deduped",
+        "use_8bit": false,
+        "isotropy": 0.33551279481039864
+    }
+]

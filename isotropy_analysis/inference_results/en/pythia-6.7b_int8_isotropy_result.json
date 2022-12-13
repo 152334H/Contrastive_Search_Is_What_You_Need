@@ -1,0 +1,8 @@
+[
+    {
+        "language_code": "en",
+        "model_name": "EleutherAI/pythia-6.7b",
+        "use_8bit": true,
+        "isotropy": 0.7112586335230368
+    }
+]
