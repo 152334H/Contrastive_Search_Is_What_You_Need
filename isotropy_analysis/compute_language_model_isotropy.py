@@ -28,6 +28,7 @@ def is_hf_model(model_name):
     STUBS = ['gpt-neox', 'gpt-neo', 'gpt-j']
     for s in STUBS:
         if s in model_name.lower(): return s
+    if 'pythia' in model_name: return 'gpt-neox'
     if 'litv2' in model_name: return 'gpt-j'
     return None
 
@@ -64,17 +65,17 @@ if __name__ == '__main__':
     print ('Save path is {}'.format(save_path))
 
     def load_hf(model_name, model_type, use_8bit=False):
-        from transformers import GPT2Tokenizer, GPTNeoXTokenizerFast, AutoTokenizer, GPTJForCausalLM, GPTNeoForCausalLM, GPTNeoXForCausalLM
+        from transformers import GPT2Tokenizer, GPTNeoXTokenizerFast, AutoTokenizer, GPTJForCausalLM, GPTNeoForCausalLM, GPTNeoXForCausalLM, XGLMForCausalLM, GPT2Tokenizer
         print(f'Evaluating {model_name}')
         modeler = {
             'gpt-neo': GPTNeoForCausalLM,
             'gpt-neox': GPTNeoXForCausalLM,
-            'gpt-j': GPTJForCausalLM
+            'gpt-j': GPTJForCausalLM,
         }[model_type]
         tokenizerer = {
             'gpt-neo': GPT2Tokenizer,
             'gpt-neox': GPTNeoXTokenizerFast,
-            'gpt-j': AutoTokenizer
+            'gpt-j': AutoTokenizer,
         }[model_type]
         kwargs = {
             "EleutherAI/gpt-j-6B": {"revision": "float16"}
